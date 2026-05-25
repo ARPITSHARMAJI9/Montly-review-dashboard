@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Pipeline Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2430;
+    --accent: #f0c040;
+    --accent2: #3ecfaa;
+    --accent3: #e05a7a;
+    --accent4: #6a9dff;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --won: #3ecfaa;
+    --positive: #6a9dff;
+    --connected: #f0c040;
+    --notconnect: #e05a7a;
+    --grid: rgba(240,192,64,0.03);
+    color-scheme: dark;
+  }
+  .light-theme {
+    --bg: #f5f7fb;
+    --surface: #ffffff;
+    --surface2: #eef1f7;
+    --border: #d6dce8;
+    --text: #111827;
+    --muted: #667085;
+    --accent: #d9a521;
+    --accent2: #059669;
+    --accent3: #dc2626;
+    --accent4: #2563eb;
+    --won: #059669;
+    --positive: #2563eb;
+    --connected: #d9a521;
+    --notconnect: #dc2626;
+    --grid: rgba(17,24,39,0.045);
+    color-scheme: light;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    min-height: 100vh;
+    overflow-x: hidden;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; padding: clamp(18px, 3vw, 32px); max-width: 1400px; margin: 0 auto; }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: clamp(22px, 3vw, 40px);
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .label-tag {
+    display: inline-block;
+    background: var(--accent);
+    color: #0a0c10;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    margin-bottom: 10px;
+  }
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(27px, 3.2vw, 36px);
+    font-weight: 800;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+  h1 span { color: var(--accent); }
+  .subtitle { font-size: 11px; color: var(--muted); margin-top: 8px; letter-spacing: 1px; }
+
+  .dashboard-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    align-self: center;
+  }
+  .source-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .source-picker label {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+  }
+  .source-picker select {
+    min-width: 122px;
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px 34px 10px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+  }
+  .source-picker select:focus { outline: 1px solid var(--accent); outline-offset: 1px; }
+
+  .period-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 4px;
+    border-radius: 4px;
+    align-self: center;
+    overflow-x: auto;
+    max-width: 100%;
+    scrollbar-width: thin;
+  }
+  .period-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .period-btn:hover { background: var(--surface2); color: var(--text); }
+  .period-btn.active {
+    background: var(--accent);
+    color: #0a0c10;
+    font-weight: 600;
+  }
+  .theme-btn {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border);
+    min-height: 40px;
+    padding: 8px 14px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.8px;
+    white-space: nowrap;
+    transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+  }
+  .theme-btn:hover,
+  .source-picker select:hover { border-color: var(--accent); }
+  .theme-btn:focus-visible,
+  .period-btn:focus-visible,
+  .source-picker select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* KPI STRIP */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+    animation: fadeUp 0.5s ease both;
+  }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--card-color, var(--accent));
+  }
+  .kpi-card:hover { border-color: var(--card-color, var(--accent)); }
+  .kpi-label { font-size: 9px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+  .kpi-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 44px;
+    font-weight: 800;
+    color: var(--card-color, var(--accent));
+    line-height: 1;
+  }
+  .kpi-sub { font-size: 10px; color: var(--muted); margin-top: 6px; }
+  .kpi-delta {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    margin-top: 6px;
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+  .kpi-delta.down { background: rgba(224,90,122,0.12); color: var(--accent3); }
+  .kpi-delta.up   { background: rgba(62,207,170,0.12); color: var(--accent2); }
+
+  /* MAIN GRID */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .full-width { grid-column: 1 / -1; }
+
+  /* CARDS */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    animation: fadeUp 0.6s ease both;
+    min-width: 0;
+  }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+  }
+  .card-badge {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 3px 8px;
+  }
+
+  /* CHART CONTAINERS */
+  .chart-wrap { position: relative; height: clamp(210px, 28vw, 260px); }
+  .chart-wrap.tall { height: clamp(230px, 30vw, 280px); }
+
+  /* STAGE TABLE */
+  .table-scroll {
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .stage-table { width: 100%; border-collapse: collapse; }
+  .stage-table th {
+    font-size: 15px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    text-align: right;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .stage-table th:first-child { text-align: left; }
+  .stage-table td {
+    font-size: 12px;
+    padding: 10px 10px;
+    border-bottom: 1px solid rgba(30,36,48,0.5);
+    text-align: right;
+    color: var(--muted);
+  }
+  .stage-table td:first-child { text-align: left; color: var(--text); }
+  .stage-table tr:hover td { background: var(--surface2); }
+  .stage-table .total-row td { color: var(--text); font-weight: 600; border-top: 1px solid var(--border); }
+  .stage-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stage-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* FUNNEL BARS */
+  .funnel-list { display: flex; flex-direction: column; gap: 12px; }
+  .funnel-item {}
+  .funnel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+  }
+  .funnel-name { font-size: 11px; color: var(--text); letter-spacing: 0.3px; }
+  .funnel-val { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .funnel-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 0;
+    overflow: hidden;
+    position: relative;
+  }
+  .funnel-bar {
+    height: 100%;
+    border-radius: 0;
+    transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 0;
+  }
+
+  /* COMPARISON TABLE */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 2fr repeat(2, 1fr) 0.5fr repeat(2, 1fr);
+    gap: 0;
+  }
+  .cg-header {
+    font-size: 9px;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cg-cell {
+    font-size: 12px;
+    padding: 11px 12px;
+    border-bottom: 1px solid rgba(30,36,48,0.5);
+  }
+  .cg-divider { border-left: 1px solid var(--border); }
+  .cg-label { color: var(--text); }
+  .cg-num { color: var(--muted); text-align: right; }
+  .cg-num.highlight { color: var(--text); font-weight: 600; }
+  .cg-badge {
+    display: inline-block;
+    font-size: 9px;
+    padding: 2px 5px;
+    border-radius: 2px;
+  }
+  .cg-up   { background: rgba(62,207,170,0.12); color: var(--accent2); }
+  .cg-down { background: rgba(224,90,122,0.12); color: var(--accent3); }
+
+  /* BOTTOM STRIP */
+  .bottom-strip {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-top: 16px;
+  }
+  .mini-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    animation: fadeUp 0.7s ease both;
+  }
+  .mini-icon {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .mini-label { font-size: 9px; color: var(--muted); letter-spacing: 1.5px; margin-bottom: 4px; }
+  .mini-value { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Stagger delays */
+  .kpi-card:nth-child(1) { animation-delay: 0.05s; }
+  .kpi-card:nth-child(2) { animation-delay: 0.10s; }
+  .kpi-card:nth-child(3) { animation-delay: 0.15s; }
+  .kpi-card:nth-child(4) { animation-delay: 0.20s; }
+
+  @media (max-width: 1100px) {
+    header { flex-direction: column; }
+    .dashboard-controls { width: 100%; align-self: stretch; flex-wrap: wrap; }
+    .period-toggle { flex: 1 1 420px; }
+    .main-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 860px) {
+    .kpi-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .card { padding: 18px; }
+    .stage-table { min-width: 590px; }
+  }
+
+  @media (max-width: 600px) {
+    .wrapper { padding: 14px; }
+    header { padding-bottom: 18px; }
+    .subtitle { font-size: 10px; line-height: 1.6; }
+    .dashboard-controls { align-items: stretch; gap: 10px; }
+    .source-picker { flex: 1 1 calc(100% - 120px); }
+    .source-picker select { width: 100%; min-height: 42px; }
+    .theme-btn { align-self: end; }
+    .period-toggle {
+      flex: 1 1 100%;
+      width: 100%;
+      padding: 4px;
+    }
+    .period-btn { flex: 1 0 auto; padding: 10px 13px; }
+    .kpi-strip, .bottom-strip { grid-template-columns: 1fr; }
+    .kpi-card { padding: 17px; }
+    .kpi-value { font-size: 30px; }
+    .card-header { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
+    .chart-wrap { height: 220px; }
+    .chart-wrap.tall { height: 240px; }
+    .funnel-header { gap: 12px; }
+    .funnel-name, .funnel-val { font-size: 10px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <div class="label-tag" id="sourceLabel">META · SALES PIPELINE</div>
+      <h1>OUTREACH <span>ANALYTICS</span></h1>
+      <div class="subtitle">MAY 2025 · TEAM PERFORMANCE OVERVIEW</div>
+    </div>
+    <div class="dashboard-controls">
+      <div class="source-picker">
+        <label for="sourceSelect">SOURCE</label>
+        <select id="sourceSelect" onchange="switchSource(this.value)">
+          <option value="META">META</option>
+          <option value="PD">PD</option>
+          <option value="GOOGLE">GOOGLE</option>
+        </select>
+      </div>
+      <button class="theme-btn" type="button" onclick="toggleTheme()" id="themeBtn" aria-label="Switch to light theme">
+        LIGHT MODE
+      </button>
+      <div class="period-toggle">
+        <button class="period-btn active" onclick="switchPeriod('may1')">1–16 MAY</button>
+        <button class="period-btn" onclick="switchPeriod('may2')">17–23 MAY</button>
+        <button class="period-btn" onclick="switchPeriod('may3')">24–25 MAY</button>
+        <button class="period-btn" onclick="switchPeriod('compare')">COMPARE</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip" id="kpiStrip"></div>
+
+  <!-- MAIN CONTENT -->
+  <div id="mainContent"></div>
+
+</div>
+
+<script>
+function applyTheme(theme) {
+  const isLight = theme === 'light';
+  document.body.classList.toggle('light-theme', isLight);
+  const btn = document.getElementById('themeBtn');
+  btn.textContent = isLight ? 'DARK MODE' : 'LIGHT MODE';
+  btn.setAttribute('aria-label', isLight ? 'Switch to dark theme' : 'Switch to light theme');
+}
+
+function toggleTheme() {
+  const nextTheme = document.body.classList.contains('light-theme') ? 'dark' : 'light';
+  applyTheme(nextTheme);
+  try { localStorage.setItem('dashboard-theme', nextTheme); } catch (error) {}
+  drawCharts();
+}
+
+function getCssVar(name) {
+  return getComputedStyle(document.body).getPropertyValue(name).trim();
+}
+
+try { applyTheme(localStorage.getItem('dashboard-theme') === 'light' ? 'light' : 'dark'); }
+catch (error) { applyTheme('dark'); }
+
+const COLORS = {
+  pitched: '#f0c040',
+  connected: '#6a9dff',
+  notConnect: '#e05a7a',
+  disinterested: '#c07ab0',
+  positive: '#3ecfaa',
+  won: '#4ade80'
+};
+
+const SOURCES = {
+  META: {
+    may1: {
+      label: '1–16 May', total: 6143, payments: 60,
+      stages: [
+        { name: 'Connected Pitched',     BA: 72,  DA: 620,  DS: 103, Others: 22, total: 817,  color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 59,  DA: 432,  DS: 47,  Others: 7,  total: 545,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 292, DA: 2161, DS: 262, Others: 26, total: 2741, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 183, DA: 1516, DS: 153, Others: 35, total: 1887, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 8,   DA: 54,   DS: 7,   Others: 3,  total: 72,   color: COLORS.positive },
+        { name: 'Won',                   BA: 6,   DA: 42,   DS: 21,  Others: 12, total: 81,   color: COLORS.won }
+      ],
+      channels: { BA: 620, DA: 4825, DS: 593, Others: 105 }
+    },
+    may2: {
+      label: '17–23 May', total: 4392, payments: 25,
+      stages: [
+        { name: 'Connected Pitched',     BA: 59,  DA: 308,  DS: 47,  Others: 7, total: 421,  color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 52,  DA: 283,  DS: 46,  Others: 4, total: 385,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 199, DA: 1654, DS: 183, Others: 17, total: 2053, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 158, DA: 1158, DS: 164, Others: 9, total: 1489, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 7,   DA: 16,   DS: 4,   Others: 2, total: 29,   color: COLORS.positive },
+        { name: 'Won',                   BA: 2,   DA: 10,   DS: 1,   Others: 2, total: 15,   color: COLORS.won }
+      ],
+      channels: { BA: 477, DA: 3429, DS: 445, Others: 41 }
+    },
+    may3: {
+      label: '24–25 May', total: 659, payments: null,
+      stages: [
+        { name: 'Connected Pitched',     BA: 12, DA: 72,  DS: 8,  Others: 4, total: 96,  color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 4,  DA: 44,  DS: 3,  Others: 1, total: 52,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 35, DA: 255, DS: 45, Others: 4, total: 339, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 6,  DA: 134, DS: 26, Others: 2, total: 168, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 1,  DA: 1,   DS: 0,  Others: 1, total: 3,   color: COLORS.positive },
+        { name: 'Won',                   BA: 0,  DA: 0,   DS: 1,  Others: 0, total: 1,   color: COLORS.won }
+      ],
+      channels: { BA: 58, DA: 506, DS: 83, Others: 12 }
+    }
+  },
+  PD: {
+    may1: {
+      label: '1–16 May', total: 837, payments: 75,
+      stages: [
+        { name: 'Connected Pitched',     BA: 32, DA: 127, DS: 21, Others: 39, total: 219, color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 10, DA: 26,  DS: 5,  Others: 7,  total: 48,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 36, DA: 129, DS: 38, Others: 39, total: 242, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 27, DA: 133, DS: 39, Others: 68, total: 267, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 5,  DA: 15,  DS: 4,  Others: 5,  total: 29,  color: COLORS.positive },
+        { name: 'Won',                   BA: 7,  DA: 19,  DS: 3,  Others: 3,  total: 32,  color: COLORS.won }
+      ],
+      channels: { BA: 117, DA: 449, DS: 110, Others: 161 }
+    },
+    may2: {
+      label: '17–23 May', total: 397, payments: 31,
+      stages: [
+        { name: 'Connected Pitched',     BA: 40, DA: 30, DS: 7,  Others: 15, total: 92,  color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 15, DA: 12, DS: 3,  Others: 6,  total: 36,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 41, DA: 35, DS: 21, Others: 15, total: 112, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 49, DA: 39, DS: 15, Others: 27, total: 130, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 5,  DA: 4,  DS: 1,  Others: 0,  total: 10,  color: COLORS.positive },
+        { name: 'Won',                   BA: 7,  DA: 8,  DS: 1,  Others: 1,  total: 17,  color: COLORS.won }
+      ],
+      channels: { BA: 157, DA: 128, DS: 48, Others: 64 }
+    },
+    may3: {
+      label: '24–25 May', total: 92, payments: null,
+      stages: [
+        { name: 'Connected Pitched',     BA: 14, DA: 11, DS: 1, Others: 3, total: 29, color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 7,  DA: 3,  DS: 0, Others: 2, total: 12, color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 19, DA: 2,  DS: 4, Others: 0, total: 25, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 6,  DA: 8,  DS: 0, Others: 6, total: 20, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 2,  DA: 2,  DS: 0, Others: 1, total: 5,  color: COLORS.positive },
+        { name: 'Won',                   BA: 0,  DA: 1,  DS: 0, Others: 0, total: 1,  color: COLORS.won }
+      ],
+      channels: { BA: 48, DA: 27, DS: 5, Others: 12 }
+    }
+  },
+  GOOGLE: {
+    may1: {
+      label: '1–16 May', total: 1079, payments: 54,
+      stages: [
+        { name: 'Connected Pitched',     BA: 32, DA: 120, DS: 19, Others: 7,  total: 178, color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 10, DA: 59,  DS: 16, Others: 0,  total: 85,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 28, DA: 235, DS: 69, Others: 6,  total: 338, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 28, DA: 257, DS: 97, Others: 15, total: 397, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 4,  DA: 31,  DS: 3,  Others: 2,  total: 40,  color: COLORS.positive },
+        { name: 'Won',                   BA: 4,  DA: 24,  DS: 9,  Others: 4,  total: 41,  color: COLORS.won }
+      ],
+      channels: { BA: 106, DA: 726, DS: 213, Others: 34 }
+    },
+    may2: {
+      label: '17–23 May', total: 515, payments: 19,
+      stages: [
+        { name: 'Connected Pitched',     BA: 13, DA: 62,  DS: 8,  Others: 5, total: 88,  color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 6,  DA: 30,  DS: 5,  Others: 2, total: 43,  color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 11, DA: 152, DS: 30, Others: 3, total: 196, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 12, DA: 114, DS: 26, Others: 8, total: 160, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 3,  DA: 13,  DS: 1,  Others: 1, total: 18,  color: COLORS.positive },
+        { name: 'Won',                   BA: 1,  DA: 9,   DS: 0,  Others: 0, total: 10,  color: COLORS.won }
+      ],
+      channels: { BA: 46, DA: 380, DS: 70, Others: 19 }
+    },
+    may3: {
+      label: '24–25 May', total: 118, payments: null,
+      stages: [
+        { name: 'Connected Pitched',     BA: 5, DA: 21, DS: 2, Others: 0, total: 28, color: COLORS.pitched },
+        { name: 'Connected/Not Pitched', BA: 2, DA: 16, DS: 1, Others: 0, total: 19, color: COLORS.connected },
+        { name: 'Not Able To Connect',   BA: 5, DA: 25, DS: 9, Others: 1, total: 40, color: COLORS.notConnect },
+        { name: 'Not Int/ Dis',          BA: 2, DA: 19, DS: 5, Others: 1, total: 27, color: COLORS.disinterested },
+        { name: 'Positive',              BA: 2, DA: 1,  DS: 1, Others: 0, total: 4,  color: COLORS.positive },
+        { name: 'Won',                   BA: 0, DA: 0,  DS: 0, Others: 0, total: 0,  color: COLORS.won }
+      ],
+      channels: { BA: 16, DA: 82, DS: 18, Others: 2 }
+    }
+  }
+};
+
+let currentSource = 'META';
+let currentPeriod = 'may1';
+let charts = {};
+
+function sourceData() {
+  return SOURCES[currentSource];
+}
+
+function switchPeriod(p) {
+  currentPeriod = p;
+  document.querySelectorAll('.period-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['may1','may2','may3','compare'][i] === p);
+  });
+  renderKPIs();
+  renderMain();
+  setTimeout(animateBars, 100);
+  setTimeout(drawCharts, 150);
+}
+
+function switchSource(source) {
+  currentSource = source;
+  document.getElementById('sourceLabel').textContent = `${source} · SALES PIPELINE`;
+  renderKPIs();
+  renderMain();
+  setTimeout(animateBars, 100);
+  setTimeout(drawCharts, 150);
+}
+
+function renderKPIs() {
+  const strip = document.getElementById('kpiStrip');
+  const source = sourceData();
+  const d1 = source.may1;
+  const d2 = source.may2;
+  const d3 = source.may3;
+  const d = currentPeriod === 'compare' ? d3 : source[currentPeriod];
+  const previous = currentPeriod === 'may2' ? d1 : currentPeriod === 'may3' ? d2 : null;
+  const stageTotal = (period, name) => period.stages.find(s => s.name === name).total;
+
+  const kpis = currentPeriod === 'compare' ? [
+    { label: 'SOURCE', value: currentSource, color: '#f0c040', sub: 'three-period comparison' },
+    { label: 'LEADS (24–25)', value: d3.total.toLocaleString(), color: '#6a9dff', sub: 'vs 17–23 May', delta: pct(d3.total, d2.total) },
+    { label: 'WON (24–25)', value: stageTotal(d3, 'Won'), color: '#4ade80', sub: 'vs 17–23 May', delta: pct(stageTotal(d3, 'Won'), stageTotal(d2, 'Won')) },
+    { label: 'PITCHED (24–25)', value: stageTotal(d3, 'Connected Pitched'), color: '#3ecfaa', sub: 'vs 17–23 May', delta: pct(stageTotal(d3, 'Connected Pitched'), stageTotal(d2, 'Connected Pitched')) },
+  ] : [
+    { label: 'TOTAL LEADS', value: d.total.toLocaleString(), color: '#f0c040', sub: `${currentSource} · ${d.label}` },
+    { label: 'PAYMENTS', value: d.payments === null ? '—' : d.payments.toLocaleString(), color: '#6a9dff', sub: d.payments === null ? 'not provided for this period' : `${((d.payments / d.total) * 100).toFixed(1)}% payment rate`, delta: previous && d.payments !== null && previous.payments !== null ? pct(d.payments, previous.payments) : null },
+    { label: 'WON', value: stageTotal(d, 'Won'), color: '#4ade80', sub: 'closed deals', delta: previous ? pct(stageTotal(d, 'Won'), stageTotal(previous, 'Won')) : null },
+    { label: 'PITCHED', value: stageTotal(d, 'Connected Pitched').toLocaleString(), color: '#3ecfaa', sub: 'connected & pitched', delta: previous ? pct(stageTotal(d, 'Connected Pitched'), stageTotal(previous, 'Connected Pitched')) : null },
+  ];
+
+  strip.innerHTML = kpis.map(k => `
+    <div class="kpi-card" style="--card-color:${k.color}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+      ${k.delta ? `<div class="kpi-delta ${k.delta.dir}">${k.delta.dir==='up'?'▲':'▼'} ${k.delta.val}% vs prev period</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function pct(a, b) {
+  const v = (((a - b) / b) * 100).toFixed(1);
+  return { val: Math.abs(v), dir: v >= 0 ? 'up' : 'down' };
+}
+
+function renderMain() {
+  const mc = document.getElementById('mainContent');
+  if (currentPeriod === 'compare') {
+    mc.innerHTML = renderCompare();
+  } else {
+    mc.innerHTML = `
+      <div class="main-grid">
+        <div class="card" style="animation-delay:.1s">
+          <div class="card-header">
+            <span class="card-title">STAGE BREAKDOWN</span>
+            <span class="card-badge">${sourceData()[currentPeriod].label.toUpperCase()} · ${currentSource}</span>
+          </div>
+          <div class="funnel-list" id="funnelList"></div>
+        </div>
+        <div class="card" style="animation-delay:.15s">
+          <div class="card-header">
+            <span class="card-title">CHANNEL SPLIT</span>
+            <span class="card-badge">DISTRIBUTION</span>
+          </div>
+          <div class="chart-wrap"><canvas id="donutChart"></canvas></div>
+        </div>
+        <div class="card full-width" style="animation-delay:.2s">
+          <div class="card-header">
+            <span class="card-title">CHANNEL PERFORMANCE BY STAGE</span>
+            <span class="card-badge">BA · DA · DS · OTHERS</span>
+          </div>
+          <div class="chart-wrap tall"><canvas id="barChart"></canvas></div>
+        </div>
+      </div>
+      <div class="card" style="animation-delay:.25s">
+        <div class="card-header">
+          <span class="card-title">DETAILED STAGE TABLE</span>
+          <span class="card-badge">${sourceData()[currentPeriod].label.toUpperCase()} · ${currentSource}</span>
+        </div>
+        ${renderTable(currentPeriod)}
+      </div>
+    `;
+    renderFunnel();
+  }
+}
+
+function renderFunnel() {
+  const d = sourceData()[currentPeriod];
+  const list = document.getElementById('funnelList');
+  if (!list) return;
+  list.innerHTML = d.stages.map(s => `
+    <div class="funnel-item">
+      <div class="funnel-header">
+        <span class="funnel-name">${s.name}</span>
+        <span class="funnel-val">${s.total.toLocaleString()} <span style="color:var(--muted);font-size:10px">(${((s.total/d.total)*100).toFixed(1)}%)</span></span>
+      </div>
+      <div class="funnel-track">
+        <div class="funnel-bar" data-width="${(s.total/d.total)*100}" style="background:${s.color}"></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function animateBars() {
+  document.querySelectorAll('.funnel-bar').forEach(bar => {
+    bar.style.width = bar.dataset.width + '%';
+  });
+}
+
+function renderTable(period) {
+  const d = sourceData()[period];
+  const rows = d.stages.map(s => `
+    <tr>
+      <td><span class="stage-pill"><span class="stage-dot" style="background:${s.color}"></span>${s.name}</span></td>
+      <td>${s.BA}</td><td>${s.DA}</td><td>${s.DS}</td><td>${s.Others}</td>
+      <td style="color:var(--text);font-weight:600">${s.total.toLocaleString()}</td>
+      <td>${((s.total / d.total) * 100).toFixed(2)}%</td>
+    </tr>
+  `).join('');
+  const ch = d.channels;
+  return `
+    <div class="table-scroll">
+    <table class="stage-table">
+      <thead><tr>
+        <th>STAGE</th><th>BA</th><th>DA</th><th>DS</th><th>OTHERS</th><th>TOTAL</th><th>%</th>
+      </tr></thead>
+      <tbody>${rows}
+        <tr class="total-row">
+          <td>Grand Total</td><td>${ch.BA}</td><td>${ch.DA}</td><td>${ch.DS}</td><td>${ch.Others}</td>
+          <td>${d.total.toLocaleString()}</td><td>100.00%</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>`;
+}
+
+function renderCompare() {
+  const { may1: d1, may2: d2, may3: d3 } = sourceData();
+  const allStages = [...new Set([...d1.stages, ...d2.stages, ...d3.stages].map(s => s.name))];
+
+  const rows = allStages.map(name => {
+    const s1 = d1.stages.find(s=>s.name===name);
+    const s2 = d2.stages.find(s=>s.name===name);
+    const s3 = d3.stages.find(s=>s.name===name);
+    const t1 = s1 ? s1.total : 0;
+    const t2 = s2 ? s2.total : 0;
+    const t3 = s3 ? s3.total : 0;
+    const color = (s1||s2||s3).color;
+    const diff = t3 - t2;
+    const pctV = t2 ? `${((diff/t2)*100).toFixed(1)}%` : '—';
+    const dir = diff >= 0 ? 'up' : 'down';
+    return `
+      <tr>
+        <td><span class="stage-pill"><span class="stage-dot" style="background:${color}"></span>${name}</span></td>
+        <td>${t1.toLocaleString()}</td>
+        <td>${t2.toLocaleString()}</td>
+        <td>${t3.toLocaleString()}</td>
+        <td><span class="cg-badge ${dir}">${diff>0?'+':''}${diff.toLocaleString()} (${pctV})</span></td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div class="main-grid">
+      <div class="card full-width" style="animation-delay:.1s">
+        <div class="card-header">
+          <span class="card-title">STAGE COMPARISON</span>
+          <span class="card-badge">${currentSource} · LATEST DELTA VS 17–23 MAY</span>
+        </div>
+        <div class="table-scroll">
+        <table class="stage-table">
+          <thead><tr><th>STAGE</th><th>1–16 MAY</th><th>17–23 MAY</th><th>24–25 MAY</th><th>LATEST CHANGE</th></tr></thead>
+          <tbody>${rows}
+            <tr class="total-row">
+              <td>Grand Total</td><td>${d1.total.toLocaleString()}</td><td>${d2.total.toLocaleString()}</td><td>${d3.total.toLocaleString()}</td>
+              <td><span class="cg-badge down">${(d3.total-d2.total).toLocaleString()} (${(((d3.total-d2.total)/d2.total)*100).toFixed(1)}%)</span></td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <div class="card" style="animation-delay:.15s">
+        <div class="card-header">
+          <span class="card-title">LEAD & PAYMENT SUMMARY</span>
+          <span class="card-badge">${currentSource} SOURCE</span>
+        </div>
+        <div class="table-scroll">
+        <table class="stage-table">
+          <thead><tr><th>METRIC</th><th>1–16 MAY</th><th>17–23 MAY</th><th>24–25 MAY</th></tr></thead>
+          <tbody>
+            <tr><td>Lead</td><td>${d1.total.toLocaleString()}</td><td>${d2.total.toLocaleString()}</td><td>${d3.total.toLocaleString()}</td></tr>
+            <tr><td>Payment</td><td>${d1.payments.toLocaleString()}</td><td>${d2.payments.toLocaleString()}</td><td>—</td></tr>
+            <tr class="total-row"><td>Payment Rate</td><td>${((d1.payments/d1.total)*100).toFixed(1)}%</td><td>${((d2.payments/d2.total)*100).toFixed(1)}%</td><td>—</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+      <div class="card" style="animation-delay:.15s">
+        <div class="card-header">
+          <span class="card-title">CHANNEL COMPARISON</span>
+          <span class="card-badge">LEADS</span>
+        </div>
+        <div class="table-scroll">
+        <table class="stage-table">
+          <thead><tr><th>CHANNEL</th><th>1–16 MAY</th><th>17–23 MAY</th><th>24–25 MAY</th></tr></thead>
+          <tbody>
+            ${['BA','DA','DS','Others'].map(ch => `<tr><td>${ch}</td><td>${d1.channels[ch]}</td><td>${d2.channels[ch]}</td><td>${d3.channels[ch]}</td></tr>`).join('')}
+            <tr class="total-row"><td>Total</td><td>${d1.total.toLocaleString()}</td><td>${d2.total.toLocaleString()}</td><td>${d3.total.toLocaleString()}</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;animation-delay:.2s">
+      <div class="card-header">
+        <span class="card-title">PERIOD COMPARISON · CHANNEL BAR</span>
+        <span class="card-badge">ALL MAY PERIODS · ${currentSource}</span>
+      </div>
+      <div class="chart-wrap tall"><canvas id="compareBar"></canvas></div>
+    </div>`;
+}
+
+function drawCharts() {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  const defaults = {
+    color: getCssVar('--muted'),
+    borderColor: getCssVar('--border'),
+    font: { family: "'JetBrains Mono', monospace", size: 10 }
+  };
+  Chart.defaults.color = defaults.color;
+  Chart.defaults.borderColor = defaults.borderColor;
+  Chart.defaults.font = defaults.font;
+
+  if (currentPeriod === 'compare') {
+    const el = document.getElementById('compareBar');
+    if (!el) return;
+    const { may1: d1, may2: d2, may3: d3 } = sourceData();
+    charts.cb = new Chart(el, {
+      type: 'bar',
+      data: {
+        labels: ['BA','DA','DS','Others'],
+        datasets: [
+          { label: '1–16 May', data: Object.values(d1.channels), backgroundColor: 'rgba(240,192,64,0.7)', borderRadius: 2 },
+          { label: '17–23 May', data: Object.values(d2.channels), backgroundColor: 'rgba(106,157,255,0.7)', borderRadius: 2 },
+          { label: '24–25 May', data: Object.values(d3.channels), backgroundColor: 'rgba(62,207,170,0.7)', borderRadius: 2 },
+        ]
+      },
+      options: chartOpts('CONTACTS', true)
+    });
+    return;
+  }
+
+  const d = sourceData()[currentPeriod];
+
+  // Donut
+  const donut = document.getElementById('donutChart');
+  if (donut) {
+    charts.donut = new Chart(donut, {
+      type: 'doughnut',
+      data: {
+        labels: ['BA','DA','DS','Others'],
+        datasets: [{
+          data: Object.values(d.channels),
+          backgroundColor: ['rgba(240,192,64,0.85)','rgba(106,157,255,0.85)','rgba(62,207,170,0.85)','rgba(192,122,176,0.85)'],
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: { position: 'right', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 8 } },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString()}` } }
+        }
+      }
+    });
+  }
+
+  // Grouped bar
+  const bar = document.getElementById('barChart');
+  if (bar) {
+    charts.bar = new Chart(bar, {
+      type: 'bar',
+      data: {
+        labels: d.stages.map(s => s.name.length > 18 ? s.name.substring(0,18)+'…' : s.name),
+        datasets: [
+          { label:'BA',     data: d.stages.map(s=>s.BA),     backgroundColor:'rgba(240,192,64,0.75)',  borderRadius:2 },
+          { label:'DA',     data: d.stages.map(s=>s.DA),     backgroundColor:'rgba(106,157,255,0.75)', borderRadius:2 },
+          { label:'DS',     data: d.stages.map(s=>s.DS),     backgroundColor:'rgba(62,207,170,0.75)',  borderRadius:2 },
+          { label:'Others', data: d.stages.map(s=>s.Others), backgroundColor:'rgba(192,122,176,0.75)', borderRadius:2 },
+        ]
+      },
+      options: chartOpts('CONTACTS', true)
+    });
+  }
+}
+
+function chartOpts(unit, legend=false) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: legend, position: 'top', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 8 } },
+      tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y?.toLocaleString() ?? ctx.parsed.toLocaleString()}` } }
+    },
+    scales: {
+      x: { grid: { color: getCssVar('--border') }, ticks: { maxRotation: 30 } },
+      y: { grid: { color: getCssVar('--border') }, beginAtZero: true }
+    }
+  };
+}
+
+// Init
+renderKPIs();
+renderMain();
+setTimeout(animateBars, 200);
+setTimeout(drawCharts, 250);
+</script>
+</body>
+</html>
