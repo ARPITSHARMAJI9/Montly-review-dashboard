@@ -807,9 +807,11 @@ function renderCompare() {
     return `
       <tr>
         <td><span class="stage-pill"><span class="stage-dot" style="background:${color}"></span>${name}</span></td>
-        <td>${t1.toLocaleString()}</td>
-        <td>${t2.toLocaleString()}</td>
-        <td>${t3.toLocaleString()}</td>
+        <td>${t1.toLocaleString()} (${((t1/d1.total)*100).toFixed(1)}%)</td>
+
+<td>${t2.toLocaleString()} (${((t2/d2.total)*100).toFixed(1)}%)</td>
+
+<td>${t3.toLocaleString()} (${((t3/d3.total)*100).toFixed(1)}%)</td>
         <td><span class="cg-badge ${dir}">${diff>0?'+':''}${diff.toLocaleString()} (${pctV})</span></td>
       </tr>`;
   }).join('');
